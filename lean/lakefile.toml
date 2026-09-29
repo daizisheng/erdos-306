@@ -1,0 +1,14 @@
+name = "Erdos306"
+version = "0.1.0"
+defaultTargets = ["Erdos306"]
+
+[leanOptions]
+autoImplicit = false
+
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
+rev = "921b8d39f71a5c813b526f38e4033417d40b4c3d"
+
+[[lean_lib]]
+name = "Erdos306"
