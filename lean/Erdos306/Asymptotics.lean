@@ -102,8 +102,8 @@ lemma y30_eps_le {y : ℕ} (hy : 2 * 10 ^ 11 ≤ y)
     _ = 1 := Real.exp_zero
 
 /-- `|W| ≥ y²/(8 log y)` for large `y` (eq. (1), from Lemma 2.1 with `x = 2y²`). -/
-lemma card_W_eventually (hR : RamanujanInequality) : ∃ y0 : ℕ, ∀ y ≥ y0, (y : ℝ) ^ 2 / (8 * log y) ≤ (Wset y).card := by
-  obtain ⟨x0, hx0⟩ := lem_cheb hR
+lemma card_W_eventually : ∃ y0 : ℕ, ∀ y ≥ y0, (y : ℝ) ^ 2 / (8 * log y) ≤ (Wset y).card := by
+  obtain ⟨x0, hx0⟩ := lem_cheb
   refine ⟨max 12 ⌈x0⌉₊, fun y hy => ?_⟩
   have hy12 : 12 ≤ y := le_trans (le_max_left _ _) hy
   have hyx : ⌈x0⌉₊ ≤ y := le_trans (le_max_right _ _) hy
@@ -255,10 +255,10 @@ lemma count_phase_numeric {y : ℕ} (hy : 800 ≤ y) :
     nlinarith
 
 /-- All the "sufficiently large `y`" conditions hold simultaneously for large `y`. -/
-theorem eventually_large (hR : RamanujanInequality) {τ : ℚ} (h0 : 0 < τ) :
+theorem eventually_large {τ : ℚ} (h0 : 0 < τ) :
     ∃ y0 : ℕ, ∀ y ≥ y0, Large τ y := by
-  obtain ⟨yW, hyW⟩ := card_W_eventually hR
-  obtain ⟨yM, hyM⟩ := cor_mertens hR
+  obtain ⟨yW, hyW⟩ := card_W_eventually
+  obtain ⟨yM, hyM⟩ := cor_mertens
   set C : ℝ := 3 / 2 + ∑ r ∈ Bset τ, (1 : ℝ) / r with hC
   have hτR : (0 : ℝ) < τ := by exact_mod_cast h0
   set Q : ℝ := 64 * C * (log (8 * τ.den) + log 16) / τ with hQ

@@ -106,9 +106,9 @@ def SmallTargets : Prop :=
 /-- **Theorem 3.1 (Small targets).**  Let `τ = a/b ∈ (0, η]`, `η = 1/400`, with `b` squarefree.
 Then for every sufficiently large `y`, `τ` is a finite sum of distinct `1/(vu)` with
 `v ≤ 2y² < y^8 < u ≤ y^9` primes. -/
-theorem thm_small (hR : RamanujanInequality) : SmallTargets := by
+theorem thm_small : SmallTargets := by
   intro τ h0 hη hsq
-  obtain ⟨y0, hy0⟩ := eventually_large hR h0
+  obtain ⟨y0, hy0⟩ := eventually_large h0
   refine ⟨y0, fun y hy => ?_⟩
   have hL := hy0 y hy
   obtain ⟨Y, hT⟩ := lem_tuning h0 hη hL

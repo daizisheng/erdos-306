@@ -23,27 +23,39 @@ the experiments and the writing.
 | path | |
 |---|---|
 | `paper/erdos306.tex`, `paper/erdos306.pdf` | the paper, as submitted to arXiv (v1, 26 Sep 2026) |
-| `lean/` | the Lean 4 + Mathlib formalisation (identical to the arXiv ancillary files); see [`lean/README.md`](lean/README.md) |
+| `lean/` | the Lean 4 + Mathlib formalisation, with no `sorry`; see [`lean/README.md`](lean/README.md) |
 
 ## Lean formalisation
 
+The formalisation is complete: no `sorry`, no axioms beyond Lean's standard three.
+
 ```lean
-theorem erdos_306_of_ramanujan (hR : RamanujanInequality) (q : ℚ) (hq : 0 < q)
-    (hsq : Squarefree q.den) :
+theorem erdos_306 (q : ℚ) (hq : 0 < q) (hsq : Squarefree q.den) :
     ∃ F : Finset ℕ, (∀ n ∈ F, ∃ p r : ℕ, p.Prime ∧ r.Prime ∧ p ≠ r ∧ n = p * r) ∧
       ∑ n ∈ F, (1 : ℚ) / n = q
 ```
 
-`RamanujanInequality` is the statement of Ramanujan's inequality (1919): for every real
-`x > 300`, `θ(x) − θ(x/2) > x/6 − 3√x`. The paper cites it and does not prove it; Mathlib does
-not yet contain a Chebyshev lower bound. `erdos_306_of_ramanujan` takes it as a hypothesis and
-uses no `sorry`. `erdos_306` has the same conclusion with the hypothesis discharged by
-`ramanujan_theta`, whose proof is the development's only `sorry`.
+`erdos_306_formal_conjectures` (in `lean/Erdos306/FormalConjectures.lean`) proves, verbatim,
+the statement of Erdős Problem #306 in Google DeepMind's
+[formal-conjectures](https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjectures/ErdosProblems/306.lean)
+repository (the proposition on the right of `answer(sorry) ↔ …`, so the answer is `True`):
+
+```lean
+theorem erdos_306_formal_conjectures : ∀ (q : ℚ), 0 < q → Squarefree q.den →
+    ∃ k : ℕ, ∃ (n : Fin (k + 1) → ℕ), n 0 = 1 ∧ StrictMono n ∧
+    (∀ i ∈ Finset.Icc 1 (Fin.last k), ω (n i) = 2 ∧ Ω (n i) = 2) ∧
+    q = ∑ i ∈ Finset.Icc 1 (Fin.last k), (1 : ℚ) / (n i)
+```
 
 ```
-'Erdos306.erdos_306_of_ramanujan' depends on axioms: [propext, Classical.choice, Quot.sound]
-'Erdos306.erdos_306' depends on axioms: [propext, sorryAx, Classical.choice, Quot.sound]
+'Erdos306.erdos_306' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Erdos306.erdos_306_formal_conjectures' depends on axioms: [propext, Classical.choice, Quot.sound]
 ```
+
+The paper cites Ramanujan's inequality for the Chebyshev-type lower bound of Lemma 2.1; the
+arXiv v1 ancillary Lean files kept it as their one `sorry`. Only the bound for large `x` is
+used, and here it is proved from Erdős' central-binomial argument (see item 10 of
+"Where the formalisation differs from the paper" in `lean/README.md`).
 
 ### Building
 
@@ -53,5 +65,6 @@ Toolchain `leanprover/lean4:v4.29.0-rc6`, Mathlib pinned in `lean/lake-manifest.
 cd lean
 lake exe cache get   # download prebuilt Mathlib
 lake build
-lake env lean Erdos306/Main.lean   # prints the axioms above
+lake env lean Erdos306/Main.lean               # prints the axioms of erdos_306
+lake env lean Erdos306/FormalConjectures.lean  # ... and of erdos_306_formal_conjectures
 ```

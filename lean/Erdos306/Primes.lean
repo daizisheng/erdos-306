@@ -1,10 +1,12 @@
 /-
 §2 of the paper: two bounds for primes.
 
-* `lem_cheb_erdos`, `lem_cheb` — Lemma 2.1 (Chebyshev-type bounds);
+* `lem_cheb_erdos`, `lem_cheb` — Lemma 2.1 (Chebyshev-type bounds); the lower bound is proved
+  here by Erdős' central-binomial argument (`centralBinom_le_primesIn`) instead of citing
+  Ramanujan's inequality;
 * `cor_mertens`                — Corollary 2.2 (the large side carries reciprocal mass `≥ 1/50`).
 -/
-import Erdos306.External
+import Erdos306.Basic
 
 namespace Erdos306
 
@@ -21,41 +23,162 @@ lemma mem_primesIn {a b p : ℕ} : p ∈ primesIn a b ↔ a < p ∧ p ≤ b ∧ 
 `primorial_le_4_pow`. -/
 theorem lem_cheb_erdos (n : ℕ) : primorial n ≤ 4 ^ n := primorial_le_4_pow n
 
+/-- Erdős' bound on the central binomial coefficient, without the Bertrand hypothesis:
+`C(2n, n) ≤ (2n)^{⌊√(2n)⌋} · 4^{⌊2n/3⌋} · (2n)^{#(primes in (n, 2n])}`. -/
+theorem centralBinom_le_primesIn (n : ℕ) (n_large : 2 < n) :
+    Nat.centralBinom n ≤
+      (2 * n) ^ Nat.sqrt (2 * n) * 4 ^ (2 * n / 3) * (2 * n) ^ (primesIn n (2 * n)).card := by
+  have n_pos : 0 < n := (Nat.zero_le _).trans_lt n_large
+  have n2_pos : 1 ≤ 2 * n := mul_pos (zero_lt_two' ℕ) n_pos
+  set f : ℕ → ℕ := fun x => x ^ n.centralBinom.factorization x with hf
+  have hsplit : Nat.centralBinom n = (∏ p ∈ Finset.range (2 * n / 3 + 1), f p) *
+      ∏ p ∈ Finset.Ico (2 * n / 3 + 1) (2 * n + 1), f p := by
+    rw [Finset.prod_range_mul_prod_Ico _ (by omega)]
+    exact n.prod_pow_factorization_centralBinom.symm
+  rw [hsplit]
+  apply mul_le_mul'
+  · -- the small primes, exactly as in Mathlib's `centralBinom_le_of_no_bertrand_prime`
+    let S := {p ∈ Finset.range (2 * n / 3 + 1) | Nat.Prime p}
+    have : ∏ x ∈ S, f x = ∏ x ∈ Finset.range (2 * n / 3 + 1), f x := by
+      refine Finset.prod_filter_of_ne fun p _ h => ?_
+      contrapose! h; dsimp only [f]
+      rw [Nat.factorization_eq_zero_of_not_prime n.centralBinom h, _root_.pow_zero]
+    rw [← this, ← Finset.prod_filter_mul_prod_filter_not S (· ≤ Nat.sqrt (2 * n))]
+    apply mul_le_mul'
+    · refine (Finset.prod_le_prod' fun p _ => (?_ : f p ≤ 2 * n)).trans ?_
+      · exact Nat.pow_factorization_choose_le (mul_pos two_pos n_pos)
+      have : (Finset.Icc 1 (Nat.sqrt (2 * n))).card = Nat.sqrt (2 * n) := by
+        rw [Nat.card_Icc, Nat.add_sub_cancel]
+      rw [Finset.prod_const]
+      refine pow_right_mono₀ n2_pos ((Finset.card_le_card fun x hx => ?_).trans this.le)
+      obtain ⟨h1, h2⟩ := Finset.mem_filter.1 hx
+      exact Finset.mem_Icc.mpr ⟨(Finset.mem_filter.1 h1).2.one_lt.le, h2⟩
+    · refine le_trans ?_ (primorial_le_4_pow (2 * n / 3))
+      refine (Finset.prod_le_prod' fun p hp => (?_ : f p ≤ p)).trans ?_
+      · obtain ⟨h1, h2⟩ := Finset.mem_filter.1 hp
+        refine (pow_right_mono₀ (Finset.mem_filter.1 h1).2.one_lt.le ?_).trans (pow_one p).le
+        exact Nat.factorization_choose_le_one (Nat.sqrt_lt'.mp <| not_le.1 h2)
+      refine Finset.prod_le_prod_of_subset_of_one_le' (Finset.filter_subset _ _) ?_
+      exact fun p hp _ => (Finset.mem_filter.1 hp).2.one_lt.le
+  · -- the primes above `2n/3`: those `≤ n` do not divide `C(2n, n)`; the rest lie in `(n, 2n]`
+    have hsub : ∏ p ∈ Finset.Ico (2 * n / 3 + 1) (2 * n + 1), f p =
+        ∏ p ∈ primesIn n (2 * n), f p := by
+      symm
+      apply Finset.prod_subset
+      · intro p hp
+        obtain ⟨h1, h2, -⟩ := mem_primesIn.1 hp
+        rw [Finset.mem_Ico]; omega
+      · intro p hp hp'
+        rw [Finset.mem_Ico] at hp
+        dsimp only [f]
+        by_cases hpr : p.Prime
+        · have hpn : p ≤ n := by
+            by_contra h
+            exact hp' (mem_primesIn.2 ⟨by omega, by omega, hpr⟩)
+          rw [Nat.factorization_centralBinom_of_two_mul_self_lt_three_mul n_large hpn (by omega),
+            _root_.pow_zero]
+        · rw [Nat.factorization_eq_zero_of_not_prime n.centralBinom hpr, _root_.pow_zero]
+    rw [hsub, ← Finset.prod_const]
+    exact Finset.prod_le_prod' fun p _ => Nat.pow_factorization_choose_le (mul_pos two_pos n_pos)
+
+/-- Logarithmic form: `#(primes in (n, 2n]) · log(2n) ≥ (n log 4)/3 − log(2n+1) − √(2n) log(2n)`. -/
+theorem primesIn_log_lower (n : ℕ) (n_large : 2 < n) :
+    (n : ℝ) * log 4 / 3 - log (2 * n + 1) - √(2 * n : ℝ) * log (2 * n) ≤
+      ((primesIn n (2 * n)).card : ℝ) * log (2 * n) := by
+  have h4 := Nat.four_pow_le_two_mul_add_one_mul_central_binom n
+  have hc := centralBinom_le_primesIn n n_large
+  rw [← Nat.centralBinom_eq_two_mul_choose] at h4
+  have key : (4 : ℝ) ^ n ≤ (2 * n + 1) *
+      ((2 * n) ^ Nat.sqrt (2 * n) * 4 ^ (2 * n / 3) * (2 * n) ^ (primesIn n (2 * n)).card) := by
+    have := h4.trans (Nat.mul_le_mul_left _ hc)
+    exact_mod_cast this
+  have hn : (1 : ℝ) ≤ 2 * n := by norm_cast; omega
+  have hl2n : 0 ≤ log (2 * n : ℝ) := log_nonneg hn
+  have hlog := Real.log_le_log (by positivity) key
+  rw [Real.log_pow, Real.log_mul (by positivity) (by positivity), Real.log_mul (by positivity)
+    (by positivity), Real.log_mul (by positivity) (by positivity), Real.log_pow, Real.log_pow,
+    Real.log_pow] at hlog
+  have hsq : ((Nat.sqrt (2 * n) : ℕ) : ℝ) ≤ √(2 * n : ℝ) := by
+    have := @Real.nat_sqrt_le_real_sqrt (2 * n); push_cast at this; exact this
+  have hdiv : (((2 * n / 3 : ℕ) : ℝ)) ≤ 2 * n / 3 := by
+    have := (Nat.cast_div_le (α := ℝ) (m := 2 * n) (n := 3)); push_cast at this; exact this
+  have hl4 : 0 ≤ log (4 : ℝ) := log_nonneg (by norm_num)
+  nlinarith [mul_le_mul_of_nonneg_right hsq hl2n, mul_le_mul_of_nonneg_right hdiv hl4]
+
 /-- **Lemma 2.1, second part**: for all sufficiently large real `x`,
 `x / (7 log x) ≤ π(x) - π(x/2)`, i.e. there are at least `x/(7 log x)` primes in `(x/2, x]`.
-Derived from Ramanujan's inequality (the hypothesis `hR`, proved as `ramanujan_theta`). -/
-theorem lem_cheb (hR : RamanujanInequality) : ∃ x0 : ℝ, ∀ x ≥ x0,
+The paper derives this from Ramanujan's inequality; here it is proved for `x ≥ 10^8` from
+`primesIn_log_lower`, which is all the paper uses. -/
+theorem lem_cheb : ∃ x0 : ℝ, ∀ x ≥ x0,
     x / (7 * log x) ≤ ((primesIn ⌊x / 2⌋₊ ⌊x⌋₊).card : ℝ) := by
-  refine ⟨126 ^ 2, fun x hx => ?_⟩
+  refine ⟨100 ^ 4, fun x hx => ?_⟩
   have hx0 : (0 : ℝ) ≤ x := le_trans (by positivity) hx
   have hx1 : (1 : ℝ) < x := lt_of_lt_of_le (by norm_num) hx
   have hlog : 0 < log x := Real.log_pos hx1
-  -- θ(x) - θ(x/2) is the sum of `log p` over the primes of `(x/2, x]`
-  have hθ : Chebyshev.theta x - Chebyshev.theta (x / 2) =
-      ∑ p ∈ primesIn ⌊x / 2⌋₊ ⌊x⌋₊, log p := by
-    have hmono : ⌊x / 2⌋₊ ≤ ⌊x⌋₊ := Nat.floor_le_floor (by linarith)
-    unfold Chebyshev.theta primesIn
-    rw [Finset.sum_filter, Finset.sum_filter, Finset.sum_filter,
-      ← Finset.sum_Ioc_consecutive _ (Nat.zero_le _) hmono]
-    ring
-  -- each term is at most `log x`
-  have hle : ∑ p ∈ primesIn ⌊x / 2⌋₊ ⌊x⌋₊, log p ≤
-      ((primesIn ⌊x / 2⌋₊ ⌊x⌋₊).card : ℝ) * log x := by
-    rw [← nsmul_eq_mul]
-    apply Finset.sum_le_card_nsmul
+  set n := ⌊x / 2⌋₊ with hn_def
+  have hn1 : x / 2 - 1 < n := Nat.sub_one_lt_floor _
+  have hn2 : (n : ℝ) ≤ x / 2 := Nat.floor_le (by positivity)
+  have hn3 : 2 < n := by
+    have : (2 : ℝ) < n := by linarith
+    exact_mod_cast this
+  -- the primes of `(n, 2n]` lie in `(x/2, x]`
+  have hsub : primesIn n (2 * n) ⊆ primesIn ⌊x / 2⌋₊ ⌊x⌋₊ := by
     intro p hp
-    obtain ⟨-, hp2, hpp⟩ := mem_primesIn.1 hp
-    apply Real.log_le_log (by exact_mod_cast hpp.pos)
-    exact le_trans (by exact_mod_cast hp2) (Nat.floor_le hx0)
-  have hram := hR x (by nlinarith)
-  -- `x/6 - 3√x ≥ x/7` for `x ≥ 126²`
-  have hsq : (126 : ℝ) ≤ Real.sqrt x := by
-    rw [show (126 : ℝ) = Real.sqrt (126 ^ 2) by rw [Real.sqrt_sq (by norm_num)]]
-    exact Real.sqrt_le_sqrt hx
-  have hss := Real.mul_self_sqrt hx0
-  have h7 : x / 7 ≤ x / 6 - 3 * Real.sqrt x := by nlinarith
+    obtain ⟨h1, h2, h3⟩ := mem_primesIn.1 hp
+    refine mem_primesIn.2 ⟨h1, le_trans h2 ?_, h3⟩
+    apply Nat.le_floor; push_cast; linarith
+  have hcard : ((primesIn n (2 * n)).card : ℝ) ≤ ((primesIn ⌊x / 2⌋₊ ⌊x⌋₊).card : ℝ) := by
+    exact_mod_cast Finset.card_le_card hsub
+  have hmain := primesIn_log_lower n hn3
+  -- `r = x^{1/4}`, so that `log x ≤ 4r` and `√x = r²`
+  set s := √x with hs
+  set r := √s with hr
+  have hs0 : 0 ≤ s := Real.sqrt_nonneg _
+  have hr0 : 0 ≤ r := Real.sqrt_nonneg _
+  have hss : s * s = x := Real.mul_self_sqrt hx0
+  have hrr : r * r = s := Real.mul_self_sqrt hs0
+  have hr100 : 100 ≤ r := by
+    have h1 : (100 : ℝ) ^ 2 ≤ s := by
+      rw [hs, show ((100 : ℝ) ^ 2) = √((100 ^ 2) ^ 2) by rw [Real.sqrt_sq (by norm_num)]]
+      exact Real.sqrt_le_sqrt (by nlinarith)
+    rw [hr, show (100 : ℝ) = √(100 ^ 2) by rw [Real.sqrt_sq (by norm_num)]]
+    exact Real.sqrt_le_sqrt h1
+  have hrpos : 0 < r := by linarith
+  have hlogx : log x ≤ 4 * r := by
+    have : log x = 4 * log r := by
+      rw [← hss, ← hrr, Real.log_mul (by positivity) (by positivity),
+        Real.log_mul (by positivity) (by positivity)]; ring
+    rw [this]; nlinarith [Real.log_le_sub_one_of_pos hrpos]
+  have h2n_pos : (0 : ℝ) < 2 * n := by positivity
+  have h2n_le : (2 * n : ℝ) ≤ x := by linarith
+  have hlog2n : log (2 * n : ℝ) ≤ log x := Real.log_le_log h2n_pos h2n_le
+  have hlog2n0 : 0 ≤ log (2 * n : ℝ) := log_nonneg (by linarith)
+  have hsqrt2n : √(2 * n : ℝ) ≤ s := Real.sqrt_le_sqrt h2n_le
+  have hlog2n1 : log (2 * n + 1 : ℝ) ≤ 1 + 4 * r := by
+    have h := Real.log_le_log (by positivity) (show (2 * n + 1 : ℝ) ≤ 2 * x by linarith)
+    rw [Real.log_mul (by norm_num) (by positivity)] at h
+    have : log (2 : ℝ) < 1 := by
+      have := Real.log_two_lt_d9; norm_num at this; linarith
+    linarith
+  have hl4 : 1.38 < log (4 : ℝ) := by
+    rw [show (4 : ℝ) = 2 ^ 2 by norm_num, Real.log_pow]
+    have := Real.log_two_gt_d9; norm_num at this ⊢; linarith
+  have hk0 : (0 : ℝ) ≤ (primesIn n (2 * n)).card := by positivity
+  -- lower bound on `k log x`
+  have hklog : (n : ℝ) * log 4 / 3 - (1 + 4 * r) - s * (4 * r) ≤
+      ((primesIn n (2 * n)).card : ℝ) * log x := by
+    have e1 : √(2 * n : ℝ) * log (2 * n) ≤ s * (4 * r) :=
+      mul_le_mul hsqrt2n (hlog2n.trans hlogx) hlog2n0 hs0
+    have e2 : ((primesIn n (2 * n)).card : ℝ) * log (2 * n) ≤
+        ((primesIn n (2 * n)).card : ℝ) * log x := mul_le_mul_of_nonneg_left hlog2n hk0
+    linarith
   rw [div_le_iff₀ (by positivity)]
-  nlinarith
+  have hxr : x = r * r * (r * r) := by rw [hrr, hss]
+  have hnl : (x / 2 - 1) * 1.38 ≤ (n : ℝ) * log 4 := by
+    apply mul_le_mul (le_of_lt hn1) (le_of_lt hl4) (by norm_num) (by positivity)
+  have hcl := mul_le_mul_of_nonneg_right hcard hlog.le
+  rw [← hrr] at hklog
+  nlinarith [mul_pos hrpos hrpos, mul_pos (mul_pos hrpos hrpos) hrpos]
 
 /-- Telescoping bound for the harmonic sum used in Corollary 2.2:
 `∑_{a ≤ i < a+n} 1/(i+1) ≥ log((a+n+1)/(a+1))` (from `log(1+1/m) ≤ 1/m`). -/
@@ -110,9 +233,9 @@ lemma dyadic_block {x0 : ℝ} (hx0 : ∀ x ≥ x0, x / (7 * log x) ≤ ((primesI
     _ ≤ _ := mul_le_mul_of_nonneg_right h (by positivity)
 
 /-- **Corollary 2.2**: for all sufficiently large `y`, `∑_{y^8 < p ≤ y^9} 1/p ≥ c_U = 1/50`. -/
-theorem cor_mertens (hR : RamanujanInequality) : ∃ y0 : ℕ, ∀ y ≥ y0,
+theorem cor_mertens : ∃ y0 : ℕ, ∀ y ≥ y0,
     (1 : ℝ) / 50 ≤ ∑ p ∈ primesIn (y ^ 8) (y ^ 9), (1 : ℝ) / p := by
-  obtain ⟨x0, hx0⟩ := lem_cheb hR
+  obtain ⟨x0, hx0⟩ := lem_cheb
   set K0 : ℕ := max 75 ⌈x0⌉₊ with hK0
   refine ⟨2 ^ K0, fun y hy => ?_⟩
   have hy0 : y ≠ 0 := by have := Nat.one_le_two_pow (n := K0); omega

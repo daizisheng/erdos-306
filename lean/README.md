@@ -32,20 +32,16 @@ lake exe cache get   # download prebuilt Mathlib
 lake build           # builds the library Erdos306
 ```
 
-`Erdos306/Main.lean` ends with `#print axioms` for the two main theorems, whose output is shown
-below.
-
-The exact statements of the two main theorems are at the end of `Erdos306/Main.lean`; the
-hypothesis `RamanujanInequality` is defined in `Erdos306/External.lean`. To re-print the
-axioms after building, run `lake env lean Erdos306/Main.lean`.
+`Erdos306/Main.lean` and `Erdos306/FormalConjectures.lean` end with `#print axioms` for the
+main theorems, whose output is shown below. To re-print it after building, run
+`lake env lean Erdos306/FormalConjectures.lean`.
 
 ## Files (in dependency order)
 
 | file | paper | contents |
 |---|---|---|
 | `Erdos306/Basic.lean` | §5, §8 | `nint x = ‖x‖` (distance to the nearest integer) and `ee x = e(x)`, with basic facts |
-| `Erdos306/External.lean` | Lemma 2.1 | **the only `sorry`**: Ramanujan's inequality (`RamanujanInequality`, `ramanujan_theta`) |
-| `Erdos306/Primes.lean` | §2 | `lem_cheb_erdos` and `lem_cheb` (Lemma 2.1), `cor_mertens` (Corollary 2.2) |
+| `Erdos306/Primes.lean` | §2 | `lem_cheb_erdos` and `lem_cheb` (Lemma 2.1, the latter via `centralBinom_le_primesIn` and `primesIn_log_lower`), `cor_mertens` (Corollary 2.2) |
 | `Erdos306/Construction.lean` | §4 | `Bset`, `Wset`, `Vset`, `Uset`, `HV`, `Aset`, `mu`, `sigma`, `Lnum`, `delta`, `eps`, `deltaA`; the structures `Large` (every "for `y` large" inequality) and `Tuned`; eq. (1) (`prod_V_le`, `HV_bounds`); `lem_tuning` (Lemma 4.1); `sigma_le_half` and `sigma_eq_of_congr` (a congruence mod 1 forces equality) |
 | `Erdos306/Counting.lean` | §5 | `freq`, `phi`, `Ncount`; `lem_geom` (geometric sum), `eq_N` (formula (2)), `eq_half` (eq. (3)), `norm_phi` |
 | `Erdos306/Table.lean` | §6 | `PV`, `crt`, `phase`, `Fcol` (`F_u`), `Scol` (`S_u`), `Coherent`, `CaseI`/`CaseII`/`CaseIII`; `coherent_unique`, `three_cases`, `caseI_iff` (case I is exactly `|h| ≤ y^7`), `label_inj`, `norm_phi_eq_prod_Fcol`, `eq_factor` (eq. (4)) |
@@ -55,37 +51,30 @@ axioms after building, run `lake env lean Erdos306/Main.lean`.
 | `Erdos306/Asymptotics.lean` | throughout | `eps_le` (the bound on `ε` in §8.1); `eventually_large`: every field of `Large τ y` holds for all large `y` |
 | `Erdos306/Core.lean` | §4–§9 | `prop_core` (Prop. 4.2) and `thm_small` (Thm. 3.1) |
 | `Erdos306/Reduction.lean` | §3 | `thm_main_of_small`: proof of Thm. 1.1 from Thm. 3.1 |
-| `Erdos306/Main.lean` | Thm. 1.1 | `erdos_306_of_ramanujan` (sorry-free) and `erdos_306` |
+| `Erdos306/Main.lean` | Thm. 1.1 | `erdos_306` |
+| `Erdos306/FormalConjectures.lean` | Thm. 1.1 | `erdos_306_formal_conjectures`: the statement of `Erdos306.erdos_306` in Google DeepMind's [formal-conjectures](https://github.com/google-deepmind/formal-conjectures/blob/main/FormalConjectures/ErdosProblems/306.lean), verbatim |
 
 ## Status
 
-The whole development builds. The only `sorry` is the proof of Ramanujan's inequality, which
-the paper cites and does not prove.
+The whole development builds with no `sorry` and no axioms beyond Lean's standard three.
 
 ```
-'Erdos306.erdos_306_of_ramanujan' depends on axioms: [propext, Classical.choice, Quot.sound]
-'Erdos306.erdos_306' depends on axioms: [propext, sorryAx, Classical.choice, Quot.sound]
+'Erdos306.erdos_306' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Erdos306.erdos_306_formal_conjectures' depends on axioms: [propext, Classical.choice, Quot.sound]
 ```
 
-`erdos_306_of_ramanujan` takes the statement of Ramanujan's inequality as a hypothesis and uses
-no `sorry`. `erdos_306` discharges that hypothesis with `External.ramanujan_theta`.
+`erdos_306_formal_conjectures` proves, word for word, the proposition `P` in the
+`formal-conjectures` statement `answer(sorry) ↔ P` of Erdős Problem #306, so the answer there is
+`True`.
 
-### Sorry inventory
-
-**(a) External facts that the paper cites:**
-- `External.ramanujan_theta : RamanujanInequality`. This is Ramanujan (1919): for every real
-  `x > 300`, `θ(x) − θ(x/2) > x/6 − 3√x`, where `θ` is `Chebyshev.theta`. Mathlib does not
-  yet have a Chebyshev lower bound.
-
-Erdős' bound `∏_{p≤x} p ≤ 4^x` is Mathlib's `primorial_le_4_pow`. The limit
-`∑ 1/j → log(9/8)` is not needed: the proof uses the elementary bound
-`∑_{a≤j<b} 1/j ≥ log(b/a)`, proved in `Primes.harmonic_ge_log`.
-
-**(b) Gaps in our own proof:** none.
+The prime-number inputs are Erdős' bound `∏_{p≤x} p ≤ 4^x` (Mathlib's `primorial_le_4_pow`) and
+the lower bound of Lemma 2.1 (see item 10 below). The limit `∑ 1/j → log(9/8)` is not needed:
+the proof uses the elementary bound `∑_{a≤j<b} 1/j ≥ log(b/a)`, proved in
+`Primes.harmonic_ge_log`.
 
 ## Where the formalisation differs from the paper
 
-These are differences of presentation; the mathematics is the same.
+Items 1–9 are differences of presentation; item 10 replaces a result the paper cites by a proof.
 
 1. **`y` is a natural number**, so `y^7` is an integer. The endpoint `Y` of `U(Y)` is a natural
    number in `[y^8, y^9]` rather than a prime, which gives the same set `U`. The tuning lemma
@@ -112,6 +101,13 @@ These are differences of presentation; the mathematics is the same.
 9. **§3 reduction.** The `q` representations are added one at a time. Each new `y` is chosen
    with `y^8` larger than every semiprime already used, so the ranges `(y_i^8, y_i^9]` are
    disjoint, as in the paper.
+10. **Lemma 2.1, lower bound.** The paper cites Ramanujan's inequality
+   `θ(x) − θ(x/2) > x/6 − 3√x` (`x > 300`) to get `π(x) − π(x/2) ≥ x/(7 log x)` for large `x`.
+   Only "for large `x`" is used, so the Lean proof instead derives this bound (for `x ≥ 10^8`)
+   from Erdős' central-binomial argument, the same one Mathlib uses for Bertrand's postulate:
+   `4^n/(2n+1) ≤ C(2n, n) ≤ (2n)^{√(2n)} · 4^{2n/3} · (2n)^{π(2n) − π(n)}`
+   (`Primes.centralBinom_le_primesIn`). An earlier version of this development (the arXiv
+   v1 ancillary files) assumed Ramanujan's inequality as its one `sorry`.
 
 ## Remarks on the paper
 
